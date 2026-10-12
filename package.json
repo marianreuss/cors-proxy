@@ -1,0 +1,14 @@
+{
+  "name": "claude-m365-cors-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CORS proxy so Claude for Microsoft 365 add-ins can call Databricks Unity Gateway",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/smoke.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
