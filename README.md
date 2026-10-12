@@ -151,11 +151,27 @@ itself in Excel.
   token typed into the add-in is stored in the browser and isn't refreshed, so
   short-lived Databricks OAuth or Entra tokens stop working after about an
   hour; only a long-lived token (in practice a PAT) works without re-login.
-  Anthropic documents automatic refresh for the gateway path only via a
-  **bootstrap endpoint** (`bootstrap_url`) that returns a short-lived token
-  with its expiry. Entra sign-in with refresh (`entra_sso`,
-  `gateway_auth_source=entra`) is documented for the Bedrock and Foundry
-  direct paths, not for the gateway path.
+  Two PAT-free options with automatic refresh:
+  - **Entra token as gateway credential** (documented in the
+    [`claude-for-msft-365-install` manifest docs](https://github.com/anthropics/financial-services/blob/main/claude-for-msft-365-install/commands/manifest.md#use-the-entra-token-as-your-gateway-credential)).
+    Unity Gateway accepts Entra tokens for the Azure Databricks resource (see
+    above), so this should work without any extra service. Not yet tested in
+    the add-in:
+    ```text
+    gateway_url=https://<app>.azurewebsites.net
+    gateway_api_format=anthropic
+    entra_sso=1
+    graph_client_id=<your Entra app; delegated Azure Databricks user_impersonation, admin-consented>
+    entra_scope=2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default
+    gateway_auth_source=entra
+    ```
+  - **Bootstrap endpoint** (`bootstrap_url`): an HTTPS GET endpoint you run
+    that receives the user's Entra token and returns per-user config, e.g. a
+    short-lived `gateway_token` with `bootstrap_expires_at`, plus MCP servers
+    and skills. Needed for per-user MCP servers and skills, or when the gateway
+    doesn't accept Entra tokens. See the
+    [bootstrap contract](https://github.com/anthropics/financial-services/blob/main/claude-for-msft-365-install/commands/bootstrap.md)
+    and [Python reference](https://github.com/anthropics/financial-services/tree/main/claude-for-msft-365-install/examples/python-bootstrap).
 - **Network.** The proxy calls the workspace from App Service's outbound IPs
   (`az webapp show -g $RG -n $APP --query outboundIpAddresses`). Add them to
   the workspace IP access list if one is enabled. With front-end Private Link,
