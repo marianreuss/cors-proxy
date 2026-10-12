@@ -143,17 +143,19 @@ resource (`az account get-access-token --resource 2ff814a6-3304-4ab8-85cb-cd0e6f
 | `GET /api/2.0/clusters/list` | 404 from the proxy (blocked) |
 
 So Unity Gateway accepts Entra ID tokens directly. Not yet tested: the add-in
-itself in Excel, and the add-in's Entra sign-in (`gateway_auth_source=entra`)
-requesting a token for the Azure Databricks resource.
+itself in Excel.
 
 ## Things to check before a PoC
 
-- **Token.** A token typed into the add-in is stored in the browser and isn't
-  refreshed. Without PATs, either let the add-in sign users in with Entra ID
-  (`gateway_auth_source=entra`, scope for the Azure Databricks resource
-  `2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default`; Unity Gateway accepts these
-  tokens, see above), or use the add-in's bootstrap endpoint option to hand out
-  short-lived tokens.
+- **Token.** On the LLM gateway path the add-in needs a gateway token. A
+  token typed into the add-in is stored in the browser and isn't refreshed, so
+  short-lived Databricks OAuth or Entra tokens stop working after about an
+  hour; only a long-lived token (in practice a PAT) works without re-login.
+  Anthropic documents automatic refresh for the gateway path only via a
+  **bootstrap endpoint** (`bootstrap_url`) that returns a short-lived token
+  with its expiry. Entra sign-in with refresh (`entra_sso`,
+  `gateway_auth_source=entra`) is documented for the Bedrock and Foundry
+  direct paths, not for the gateway path.
 - **Network.** The proxy calls the workspace from App Service's outbound IPs
   (`az webapp show -g $RG -n $APP --query outboundIpAddresses`). Add them to
   the workspace IP access list if one is enabled. With front-end Private Link,
