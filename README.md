@@ -128,12 +128,32 @@ Model names: the add-in discovers models via `GET /v1/models`. If the gateway
 doesn't return a list there, the add-in asks for a model ID; enter the full
 Unity Catalog name of the Claude model.
 
+## Tested
+
+Run locally against an Azure Databricks workspace's Unity Gateway (2026-10-12),
+authenticating with a Microsoft Entra ID token for the Azure Databricks
+resource (`az account get-access-token --resource 2ff814a6-3304-4ab8-85cb-cd0e6f879c1d`):
+
+| Check | Result |
+| --- | --- |
+| `OPTIONS /v1/messages` preflight | 204 with CORS headers |
+| `GET /v1/models` | 200, returns `system.ai.claude-*` models |
+| `POST /v1/messages` streamed, token sent as `x-api-key` | 200, SSE streamed, CORS header present |
+| Invalid token | 401 from Unity Gateway, CORS header present |
+| `GET /api/2.0/clusters/list` | 404 from the proxy (blocked) |
+
+So Unity Gateway accepts Entra ID tokens directly. Not yet tested: the add-in
+itself in Excel, and the add-in's Entra sign-in (`gateway_auth_source=entra`)
+requesting a token for the Azure Databricks resource.
+
 ## Things to check before a PoC
 
 - **Token.** A token typed into the add-in is stored in the browser and isn't
-  refreshed. Without PATs, use the add-in's bootstrap endpoint option to hand
-  out short-lived Databricks OAuth tokens, or test whether Unity Gateway
-  accepts Entra ID tokens with `gateway_auth_source=entra`.
+  refreshed. Without PATs, either let the add-in sign users in with Entra ID
+  (`gateway_auth_source=entra`, scope for the Azure Databricks resource
+  `2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default`; Unity Gateway accepts these
+  tokens, see above), or use the add-in's bootstrap endpoint option to hand out
+  short-lived tokens.
 - **Network.** The proxy calls the workspace from App Service's outbound IPs
   (`az webapp show -g $RG -n $APP --query outboundIpAddresses`). Add them to
   the workspace IP access list if one is enabled. With front-end Private Link,
