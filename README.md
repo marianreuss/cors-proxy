@@ -46,9 +46,30 @@ No npm dependencies. Requires Node.js 20 or later.
 | --- | --- | --- | --- |
 | `UPSTREAM_URL` | yes | – | Unity Gateway Anthropic endpoint, e.g. `https://adb-1234567890123456.7.azuredatabricks.net/ai-gateway/anthropic` |
 | `ALLOWED_ORIGINS` | no | `https://pivot.claude.ai` | Comma-separated list of browser origins allowed to call the proxy |
+| `EXTRA_MODELS` | no | – | Models to add to the gateway's `GET /v1/models` list, see [Custom models](#custom-models) |
 | `REQUIRE_ORIGIN` | no | `false` | Set to `true` to reject requests without an `Origin` header (blocks curl/server-side use) |
 | `UPSTREAM_TIMEOUT_MS` | no | `600000` | Socket idle timeout towards the gateway |
 | `PORT` | no | `8080` | Set automatically by App Service |
+
+## Custom models
+
+Unity Gateway's `GET /v1/models` lists only the built-in `system.ai.*` models.
+Models it serves under other names, e.g. a model registered in a Unity Catalog
+schema such as `dz_hyp.default.claude-5-5`, work in `POST /v1/messages` but
+don't show up in the add-in's model picker. `EXTRA_MODELS` appends them to the
+gateway's list (models the gateway already lists aren't duplicated):
+
+```bash
+# comma-separated ids
+EXTRA_MODELS=dz_hyp.default.claude-5-5
+
+# or JSON, to set the label shown in the picker
+EXTRA_MODELS='[{"id":"dz_hyp.default.claude-5-5","display_name":"Claude 5.5 (DZ HYP)"}]'
+```
+
+The list is only extended when the gateway answers with 200, so users without
+gateway access still get the gateway's error. Whether a user may call a model is
+still decided by Unity Gateway.
 
 ## Run locally
 

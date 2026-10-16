@@ -11,6 +11,7 @@ const { spawn } = require('node:child_process');
 
 const ORIGIN = 'https://pivot.claude.ai';
 const PROXY_PORT = 18080;
+const EXTRA_MODELS = 'dz_hyp.default.claude-5-5, system.ai.claude-sonnet-5-5';
 let lastUpstreamRequest;
 
 const upstream = http.createServer((req, res) => {
@@ -21,7 +22,7 @@ const upstream = http.createServer((req, res) => {
   }
   if (req.url === '/ai-gateway/anthropic/v1/models') {
     res.writeHead(200, { 'content-type': 'application/json' });
-    return res.end(JSON.stringify({ data: [{ id: 'system.ai.claude-sonnet-5-5' }] }));
+    return res.end(JSON.stringify({ data: [{ id: 'system.ai.claude-sonnet-5-5' }], has_more: false }));
   }
   if (req.url === '/ai-gateway/anthropic/v1/messages') {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'request-id': 'req_123' });
@@ -38,7 +39,7 @@ async function main() {
   const upstreamUrl = `http://127.0.0.1:${upstream.address().port}/ai-gateway/anthropic/`;
 
   const proxy = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], {
-    env: { ...process.env, PORT: String(PROXY_PORT), UPSTREAM_URL: upstreamUrl },
+    env: { ...process.env, PORT: String(PROXY_PORT), UPSTREAM_URL: upstreamUrl, EXTRA_MODELS },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
   await new Promise((resolve) => proxy.stdout.once('data', resolve));
@@ -83,10 +84,15 @@ async function main() {
     assert.equal(lastUpstreamRequest.headers.origin, undefined);
     assert.equal(lastUpstreamRequest.headers['anthropic-version'], '2023-06-01');
 
-    // 4. Model discovery with Authorization header.
+    // 4. Model discovery with Authorization header: gateway list plus EXTRA_MODELS,
+    //    without duplicating models the gateway already lists.
     res = await fetch(`${base}/v1/models`, { headers: { origin: ORIGIN, authorization: 'Bearer dapi-test' } });
     assert.equal(res.status, 200);
-    assert.equal((await res.json()).data[0].id, 'system.ai.claude-sonnet-5-5');
+    assert.equal(res.headers.get('access-control-allow-origin'), ORIGIN);
+    const models = (await res.json()).data;
+    assert.deepEqual(models.map((m) => m.id), ['system.ai.claude-sonnet-5-5', 'dz_hyp.default.claude-5-5']);
+    assert.equal(models[1].type, 'model');
+    assert.equal(models[1].display_name, 'dz_hyp.default.claude-5-5');
 
     // 5. Upstream errors keep our CORS header (and drop upstream's wildcard).
     res = await fetch(`${base}/v1/models`, { headers: { origin: ORIGIN, authorization: 'Bearer wrong' } });
